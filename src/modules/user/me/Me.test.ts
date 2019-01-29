@@ -1,7 +1,7 @@
 import faker from "faker";
 import { Connection } from "typeorm";
-import { gCall } from "../../..//test-utils/gCall";
 import { User } from "../../../entity/User";
+import { gCall } from "./../../../test-utils/gCall";
 import { testConn } from "./../../../test-utils/testConn";
 
 let conn: Connection;
@@ -14,44 +14,52 @@ afterAll(async () => {
   await conn.close();
 });
 
-const registerMutation = `
-mutation Register($data: RegisterInput!) {
-  register(data: $data) {
+const meQuery = `
+{
+  me {
+    id
     firstname
     lastname
     email
   }
 }
-
 `;
 
-describe("register", () => {
-  it("create user", async () => {
-    const user = {
+describe("me", () => {
+  it("get user", async () => {
+    const user = await User.create({
       firstname: faker.name.firstName(),
       lastname: faker.name.lastName(),
       email: faker.internet.email(),
       password: faker.internet.password()
-    };
+    }).save();
 
     const response = await gCall({
-      source: registerMutation,
-      variableValues: {
-        data: user
-      }
+      source: meQuery,
+      userId: user.id
     });
 
     expect(response).toMatchObject({
       data: {
-        register: {
+        me: {
+          id: `${user.id}`,
           firstname: user.firstname,
           lastname: user.lastname,
           email: user.email
         }
       }
     });
+  });
 
-    const dbUser = await User.findOne({ where: { email: user.email } });
-    expect(dbUser).toBeDefined();
+  it("return null", async () => {
+    const response = await gCall({
+      source: meQuery
+    });
+
+    expect(response).toMatchObject({
+      data: {
+        me: null
+      }
+    });
   });
 });
